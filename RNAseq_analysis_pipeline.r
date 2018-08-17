@@ -1,3 +1,4 @@
+##Load necessary libraries and functions
 library(DESeq)
 library(RColorBrewer)
 library(gplots)
@@ -28,7 +29,6 @@ panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...) { ## Useful f
 }
 
 corr_comparison <- function(input_matrix,input_meta=NEU_meta,corr_input_name=input_name){
-
 centered_input <- t(scale(t(input_matrix),scale=F)) ## Centers the mean of all genes - this means the PCA gives us the eigenvectors of the geneXgene covariance matrix, allowing us to assess the proportion of variance each component contributes to the data
 PC <- prcomp(centered_input)
 topPC<- PC$rotation[,1:5]
@@ -40,7 +40,6 @@ covariate_df <- data.frame(Astrocytes=as.numeric(input_meta$Astrocytes), Endothe
 col_cond <- input_meta$sample_colors ## colors
 topPC2 <- topPC
 colnames(topPC2) <- c("PC1","PC2","PC3","PC4","PC5")
-#form <- ~ PC1 + PC2 + PC3 + PC4 + PC5 + Dx + Timepoint + Seq_batch + Sex + Diff_batch + Total_reads + Age + Families + RIN + Individuals + Del_size
 form <- ~ PC1 + PC2 + PC3 + PC4 + PC5 + Dx + Timepoint + Sex + Diff_batch + Total_reads + Age + Families + RIN + Individuals + Del_size + Astrocytes + Endothelial_cells + Fetal_quiescent_neurons + Fetal_replicating_neurons + Microglia + Neurons + Oligodendrocytes
 cor_matrix <- canCorPairs(form,cbind(topPC2,covariate_df))
 hM <- format(round(cor_matrix, 2))
@@ -51,8 +50,6 @@ pairs(cbind(topPC,covariate_df),col=col_cond,pch=19,cex.labels=0.5,upper.panel =
 pca3d(topPC, show.ellipses=TRUE,ellipse.ci=0.95, show.plane=FALSE)
 #PCA correlation plot
 dev.off()
-
-
 }
 
 norm_comparison <- function(norm_input_name,comparison_set,comparison_matrix_t,comp_meta,comparison_matrix,name=NULL){
@@ -104,31 +101,10 @@ full_pipeline <- function(input_name="FULL_NEU",small_only=FALSE,run_vp=FALSE,pi
 	}
 	
 	##Subset to group of interest
-	head(NEU_meta)
-	if(NEU_groups_to_use=="ABC"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("A","B","C")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("A","B","C"),]
-	}
-	if(NEU_groups_to_use=="AB"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("A","B")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("A","B"),]
-	}
-	if(NEU_groups_to_use=="AC"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("A","C")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("A","C"),]
-	}
-	if(NEU_groups_to_use=="BC"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("B","C")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("B","C"),]
-	}
-	if(NEU_groups_to_use=="A"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("A")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("A"),]
-	}
-	if(NEU_groups_to_use=="B"){
-		NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% c("B")]
-		NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% c("B"),]
-	}
+	groups_to_use <- strsplit(NEU_groups_to_use,split="")
+	groups_to_use <- groups_to_use[[1]]
+	NEU_counts <- NEU_counts[,NEU_meta$Seq_batch %in% groups_to_use]
+	NEU_meta <- NEU_meta[NEU_meta$Seq_batch %in% groups_to_use,]
 	
 	##Print sample summary
 	print(strsplit(paste('The input matrix contains expression counts for ',nrow(NEU_counts),' genes in a total of ',ncol(NEU_counts),' samples\n',sep=""),"\n")[[1]])
@@ -173,7 +149,8 @@ full_pipeline <- function(input_name="FULL_NEU",small_only=FALSE,run_vp=FALSE,pi
 	rownames(voom_matrix1) <- voom_matrix1[,1]
 	voom_matrix1 <- voom_matrix1[,2:ncol(voom_matrix1)]
 	voom_matrix_t <- t(voom_matrix1)
-	##Code for running variance partition
+	
+	##Code for running variance partition to identify which covariates explain the most variance
 	if(run_vp){
 		form <- ~ (1|Dx) + (1|Sex) + Age + (1|Families) + (1|Individuals) + (1|Diff_batch) + RIN + Timepoint + Endothelial_cells
 		geneExpr <- as.matrix(voom_matrix1)
